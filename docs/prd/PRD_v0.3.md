@@ -1,5 +1,7 @@
 # CIM World PRD v0.3
 
+[TOC]
+
 ## 1. 一句话定义
 CIM World 是一个面向学生的半导体工厂虚拟世界：可仿真、可插件、可回放、可进化。  
 学生以“厂长视角”通过连续场景项目亲手构建 MES/EAP/OMS/SPC/FDC/APC/RMS 等工厂软件能力，并通过 replay 对比看见系统前后差异。
