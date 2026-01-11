@@ -1,6 +1,9 @@
 """
-events 子包导出 Event，方便外部写：from cim_worldlab.world.events import Event
+events 子包导出：
+- Event：统一事件模型
+- ExternalInput：外部输入 payload 规范
 """
 from .event import Event
+from .external_input import ExternalInput, EXTERNAL_INPUT_TYPE
 
-__all__ = ["Event"]
+__all__ = ["Event", "ExternalInput", "EXTERNAL_INPUT_TYPE"]
