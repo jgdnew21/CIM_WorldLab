@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cim-worldlab.local/schemas/input.schema.json",
+  "title": "CIM WorldLab External Input",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["source", "channel", "name", "data"],
+  "properties": {
+    "source": {
+      "type": "string",
+      "enum": ["plugin", "human", "system"],
+      "description": "Where this input comes from."
+    },
+    "channel": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Logical channel, e.g. equipment/order/ops."
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Event name, e.g. TEMP_READING/NEW_ORDER/PAUSE."
+    },
+    "data": {
+      "type": "object",
+      "description": "Arbitrary JSON object as payload."
+    },
+    "trace_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Optional trace id for correlating multiple inputs."
+    }
+  }
+}

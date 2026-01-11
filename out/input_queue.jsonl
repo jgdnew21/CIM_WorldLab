@@ -1,2 +1,7 @@
 {"source": "plugin", "channel": "equipment", "name": "TEMP_READING", "data": {"temp_c": 93.0}, "trace_id": "T-001"}
 {"source": "plugin", "channel": "equipment", "name": "TEMP_READING", "data": {"temp_c": 92.5}}
+{"source": "plugin", "channel": "equipment", "name": "TEMP_READING", "data": {"temp_c": 90.0}, "trace_id": "PLUGIN-DEMO-0"}
+{"source": "plugin", "channel": "equipment", "name": "TEMP_READING", "data": {"temp_c": 91.0}, "trace_id": "PLUGIN-DEMO-1"}
+{"source": "plugin", "channel": "equipment", "name": "TEMP_READING", "data": {"temp_c": 92.0}, "trace_id": "PLUGIN-DEMO-2"}
+{"source": "plugin", "channel": "equipment", "name": "TEMP_READING", "data": {"temp_c": 93.0}, "trace_id": "PLUGIN-DEMO-3"}
+{"source": "plugin", "channel": "equipment", "name": "TEMP_READING", "data": {"temp_c": 94.0}, "trace_id": "PLUGIN-DEMO-4"}

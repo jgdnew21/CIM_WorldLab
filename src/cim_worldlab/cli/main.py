@@ -30,6 +30,8 @@ def build_parser() -> argparse.ArgumentParser:
     # run-once
     pr = sub.add_parser("run-once", help="Run one tick + ingest inputs, print metrics")
     pr.add_argument("--snapshot-every", type=int, default=0, help="Save snapshot every N events (0=disable)")
+    pr.add_argument("--pretty",action="store_true",help="Pretty output for projector")
+
 
     # run
     prun = sub.add_parser("run", help="Run N ticks, repeatedly calling run-once")
@@ -54,8 +56,32 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.cmd == "run-once":
         out = cmd_run_once(snapshot_every=args.snapshot_every)
-        print(json.dumps(out, ensure_ascii=False, indent=2))
+
+        if args.pretty:
+            # ========= 投屏友好输出 =========
+            m = out["metrics"]
+            print(
+                f"t={m['t']}  "
+                f"ticks={m['tick_count']}  "
+                f"inputs={m['input_count']}  "
+                f"cursor={out['cursor']}"
+            )
+
+            if m.get("last_input_summary"):
+                li = m["last_input_summary"]
+                print(
+                    "last_input:"
+                    f" source={li.get('source')}"
+                    f" channel={li.get('channel')}"
+                    f" name={li.get('name')}"
+                )
+
+            print(f"inputs_by_channel: {m.get('inputs_by_channel', {})}")
+        else:
+            print(json.dumps(out, ensure_ascii=False, indent=2))
+
         return 0
+
 
     if args.cmd == "run":
         cmd_run(ticks=args.ticks, sleep_s=args.sleep, snapshot_every=args.snapshot_every)
