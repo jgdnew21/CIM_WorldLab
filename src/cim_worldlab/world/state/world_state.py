@@ -41,6 +41,9 @@ class WorldState:
     tick_count: int
     input_count: int
     last_input: Optional[Dict[str, Any]]
+    action_count: int = 0
+    last_action: Optional[Dict[str, Any]] = None
+
 
     @staticmethod
     def initial() -> "WorldState":

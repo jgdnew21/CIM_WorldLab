@@ -20,6 +20,7 @@ from dataclasses import dataclass, field
 from typing import Dict, Any, Optional, List, Tuple
 
 from cim_worldlab.world.events.event import Event
+from cim_worldlab.world.events.action_executed import ActionExecuted
 from cim_worldlab.world.events.external_input import ExternalInput, EXTERNAL_INPUT_TYPE
 from cim_worldlab.world.runtime.event_log import EventLog
 from cim_worldlab.world.persistence.file_event_store import FileEventStore
@@ -69,16 +70,44 @@ class WorldRuntime:
         decisions = evaluate_event(e)
         for d in decisions:
             # 如果输入里有 trace_id，我们把它从原事件传递过去（便于串联因果链）
-            trace_id = e.payload.get("trace_id")
+            trace_id = None
+            if isinstance(e.payload, dict):
+                trace_id = e.payload.get("trace_id")
+
             decision_event = d.to_event(t=self.t, trace_id=trace_id)
 
-            # 决策事件也要走统一留痕入口：
+            # ✅ 关键改动 1：决策事件也走统一留痕入口
+            # 这样它会：
             # - append 到 event_log
             # - append 到 event_store（如果启用）
-            # - 更新 state（目前 state 对决策事件是“忽略”也没关系）
-            self.event_log.append(decision_event)
-            if self.event_store is not None:
-                self.event_store.append(decision_event)
+            # - 更新 state（目前 reducer 可选择忽略 POLICY_DECISION，但流程统一更稳）
+            self._record(decision_event)
+
+            # ✅ 关键改动 2：紧跟着生成 ACTION_EXECUTED（仅留痕，不接真实设备）
+            dp = decision_event.payload if isinstance(decision_event.payload, dict) else {}
+
+            action_type = (
+                dp.get("suggested_action")
+                or dp.get("action")
+                or dp.get("action_type")
+                or "NOOP"
+            )
+            reason = (
+                dp.get("reason")
+                or dp.get("why")
+                or dp.get("message")
+                or "follow policy decision"
+            )
+
+            action_event = ActionExecuted(
+                action_type=str(action_type),
+                reason=str(reason),
+                from_policy_t=decision_event.t,
+                trace_id=str(trace_id) if trace_id is not None else None,
+            ).to_event(t=self.t)
+
+            self._record(action_event)
+
 
     def tick(self, payload: Optional[Dict[str, Any]] = None) -> Event:
         next_t = self.t + 1

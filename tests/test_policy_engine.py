@@ -40,3 +40,8 @@ def test_temp_high_triggers_policy_decision():
     assert de.payload["recommended_action"] == "PAUSE"
     assert de.payload["severity"] == "ALERT"
     assert de.payload.get("trace_id") == "TR-1"
+
+    assert "POLICY_DECISION" in types
+    assert "ACTION_EXECUTED" in types
+    assert types.index("ACTION_EXECUTED") > types.index("POLICY_DECISION")
+

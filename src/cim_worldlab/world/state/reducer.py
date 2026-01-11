@@ -22,6 +22,8 @@ from typing import Any, Dict
 from cim_worldlab.world.events.event import Event
 from cim_worldlab.world.events.external_input import EXTERNAL_INPUT_TYPE
 from cim_worldlab.world.state.world_state import WorldState
+from cim_worldlab.world.events.action_executed import ACTION_EXECUTED_TYPE
+
 
 
 def apply_event(state: WorldState, e: Event) -> WorldState:
@@ -51,9 +53,27 @@ def apply_event(state: WorldState, e: Event) -> WorldState:
             input_count=state.input_count + 1,
             last_input=dict(e.payload),  # 复制一份，避免引用被外部改动
         )
-
+    
     # 3) 其他事件类型：MVP 先“不改变状态”
     # 以后你加 FDC/SPC/OMS 事件类型时，再在这里扩展规则
+
+    if e.type == ACTION_EXECUTED_TYPE:
+    # 教学注释：
+    # - reducer 必须是“纯函数”：返回新 state，不偷偷改旧对象
+    # - last_action 只存“可 JSON 化”的 dict，方便落盘与投屏
+        payload = e.payload or {}
+        new_last_action = {
+            "t": e.t,
+            "action_type": str(payload.get("action_type", "")),
+            "reason": str(payload.get("reason", "")),
+            "from_policy_t": payload.get("from_policy_t"),
+            "trace_id": payload.get("trace_id"),
+        }
+        return replace(
+            state,
+            action_count=state.action_count + 1,
+            last_action=new_last_action,
+        )
     return state
 
 
