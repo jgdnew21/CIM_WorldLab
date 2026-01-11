@@ -1,0 +1,2 @@
+{"t": 1, "type": "WORLD_TICK", "payload": {"msg": "first"}}
+{"t": 2, "type": "WORLD_TICK", "payload": {"msg": "second"}}
