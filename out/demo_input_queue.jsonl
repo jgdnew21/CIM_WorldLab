@@ -1,0 +1,5 @@
+{"source": "plugin", "channel": "equipment", "name": "TEMP_READING", "data": {"temp_c": 92.5}, "trace_id": "D-001"}
+{"source": "human", "channel": "ops", "name": "PAUSE", "data": {"reason": "check machine"}, "trace_id": "D-002"}
+{"source": "system", "channel": "order", "name": "NEW_ORDER", "data": {"order_id": "O-100"}, "trace_id": "D-003"}
+{"source": "system", "channel": "order", "name": "NEW_ORDER", "data": {"order_id": "O-100"}, "trace_id": "D-003"}
+{"source": "system", "channel": "order", "name": "NEW_ORDER", "data": {"order_id": "O-100"}, "trace_id": "D-003"}
