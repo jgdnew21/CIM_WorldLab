@@ -52,6 +52,34 @@ class WorldRuntime:
         self.state = apply_event(self.state, e)
         self.t = self.state.t
 
+        # ----------------------------------------
+        # Step 17: Policy Engine Hook（事件 -> 决策）
+        # ----------------------------------------
+        # 我们在每次记录事件后，立刻让 policy engine 评估该事件。
+        # 如果命中规则，就生成 POLICY_DECISION 事件继续留痕。
+        #
+        # 这样做的好处：
+        # - 判断有独立事件记录（可解释、可回放）
+        # - runtime 仍然是“事件驱动”的统一入口
+        #
+        # 注意：evaluate_event 只对 EXTERNAL_INPUT 生效；
+        # 对 POLICY_DECISION / WORLD_TICK 等会返回空，不会形成循环。
+        from cim_worldlab.world.policy import evaluate_event
+
+        decisions = evaluate_event(e)
+        for d in decisions:
+            # 如果输入里有 trace_id，我们把它从原事件传递过去（便于串联因果链）
+            trace_id = e.payload.get("trace_id")
+            decision_event = d.to_event(t=self.t, trace_id=trace_id)
+
+            # 决策事件也要走统一留痕入口：
+            # - append 到 event_log
+            # - append 到 event_store（如果启用）
+            # - 更新 state（目前 state 对决策事件是“忽略”也没关系）
+            self.event_log.append(decision_event)
+            if self.event_store is not None:
+                self.event_store.append(decision_event)
+
     def tick(self, payload: Optional[Dict[str, Any]] = None) -> Event:
         next_t = self.t + 1
         e = Event(t=next_t, type="WORLD_TICK", payload=payload or {})
