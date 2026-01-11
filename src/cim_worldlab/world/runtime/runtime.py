@@ -1,31 +1,29 @@
 """
 runtime.py
 ==========
-世界运行时（WorldRuntime）——世界会动的心脏
+WorldRuntime：世界运行时（世界会动的心脏）
 
-Step 9 我们有：
-- tick 产生 WORLD_TICK
-- ingest_inputs 产生 EXTERNAL_INPUT
-- _record 统一留痕（内存 + 可选落盘）
+我们现在的完整能力链：
+Step 7: tick + 内存 EventLog
+Step 8: 事件落盘 FileEventStore + replay
+Step 9: 外部输入 ingest_inputs + PluginGateway
+Step 10: WorldState + reducer（状态由事件推导）
+Step 11: metrics（可观测指标）
+Step 12: snapshot（快照）+ replay 加速
 
-Step 10 我们加入：
-- state: WorldState（世界状态）
-- reducer: apply_event(state, event) -> new_state
-- 每次 _record 时，除了留痕，还会“推导状态”
-
-工程上的重要变化：
-- runtime 不再“手写维护各种状态字段”
-- runtime 只负责：记录事件 + 用 reducer 得到新状态
-- replay 不再只恢复 t，而是恢复整个 state
+本文件新增：
+- maybe_snapshot(snapshot_store, every_n_events)
+- replay_fast_from_store(event_store, snapshot_store)
 """
 
 from dataclasses import dataclass, field
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional, List, Tuple
 
 from cim_worldlab.world.events.event import Event
 from cim_worldlab.world.events.external_input import ExternalInput, EXTERNAL_INPUT_TYPE
 from cim_worldlab.world.runtime.event_log import EventLog
 from cim_worldlab.world.persistence.file_event_store import FileEventStore
+from cim_worldlab.world.persistence.snapshot_store import SnapshotStore
 from cim_worldlab.world.gateway.plugin_gateway import PluginGateway
 
 from cim_worldlab.world.state import WorldState, apply_event, apply_events
@@ -33,14 +31,6 @@ from cim_worldlab.world.state import WorldState, apply_event, apply_events
 
 @dataclass
 class WorldRuntime:
-    """
-    字段解释：
-    - t: 世界时间（为了兼容早期代码/直观展示，仍保留）
-    - state: 世界状态（权威来源：由事件推导）
-    - event_log: 内存事件日志
-    - event_store: 可选落盘
-    - gateway: 可选外部输入网关
-    """
     t: int = 0
     state: WorldState = field(default_factory=WorldState.initial)
     event_log: EventLog = field(default_factory=EventLog)
@@ -49,50 +39,26 @@ class WorldRuntime:
 
     def _record(self, e: Event) -> None:
         """
-        统一留痕入口（非常关键）：
-
-        1) 写入内存日志（可调试/可教学）
-        2) 可选：落盘写入 FileEventStore（工程留痕）
-        3) 更新 state（由 reducer 推导，而不是手写乱改）
-
-        注意：
-        - 我们仍然维护 self.t，但它应该和 self.state.t 同步
-        - 长远看，你甚至可以去掉 self.t，只保留 state.t
-          但为了教学循序渐进，我们先两者并存。
+        统一留痕入口：
+        - event_log.append
+        - event_store.append（可选）
+        - state = apply_event(state, e)
+        - t 与 state.t 同步
         """
-        # (1) 内存留痕
         self.event_log.append(e)
-
-        # (2) 文件留痕（可选）
         if self.event_store is not None:
             self.event_store.append(e)
 
-        # (3) 状态推导（核心）
         self.state = apply_event(self.state, e)
-
-        # (4) 同步 runtime.t（直观展示用）
         self.t = self.state.t
 
     def tick(self, payload: Optional[Dict[str, Any]] = None) -> Event:
-        """
-        世界自身推进一步：
-        - 推进世界时间（t+1）
-        - 产生 WORLD_TICK 事件
-        - 留痕 + 推导状态
-        """
         next_t = self.t + 1
         e = Event(t=next_t, type="WORLD_TICK", payload=payload or {})
         self._record(e)
         return e
 
     def ingest_inputs(self) -> List[Event]:
-        """
-        从插件网关拉取外部输入，并转成 EXTERNAL_INPUT 事件写入日志。
-
-        设计选择（MVP）：
-        - 外部输入事件“附着在当前世界时间点 t”
-        - ingest 本身不推进世界时间
-        """
         if self.gateway is None:
             return []
 
@@ -107,28 +73,88 @@ class WorldRuntime:
 
         return events
 
+    def metrics(self):
+        """
+        返回当前世界指标快照（WorldMetrics）。
+        这里使用“函数内 import”避免潜在循环依赖。
+        """
+        from cim_worldlab.world.metrics import compute_metrics
+        return compute_metrics(self.state, self.event_log)
+
+    # -------------------------------
+    # Step 12: 快照相关能力
+    # -------------------------------
+
+    def maybe_snapshot(self, snapshot_store: SnapshotStore, every_n_events: int = 50) -> bool:
+        """
+        根据事件数量，决定是否保存快照。
+
+        参数：
+        - snapshot_store：快照存储
+        - every_n_events：每累计 N 条事件保存一次
+
+        返回：
+        - True：这次保存了快照
+        - False：这次没保存（事件数量还没到阈值）
+
+        规则（MVP）：
+        - 当 len(event_log) 是 every_n_events 的倍数时保存
+        - last_event_index = len(event_log) - 1
+        """
+        n = len(self.event_log)
+        if n == 0:
+            return False
+        if n % every_n_events != 0:
+            return False
+
+        last_event_index = n - 1
+        snapshot_store.save(self.state, last_event_index=last_event_index)
+        return True
+
     @classmethod
     def replay_from_store(cls, store: FileEventStore) -> "WorldRuntime":
         """
-        从事件存储回放 replay，重建 runtime。
-
-        Step 10 的关键点：
-        - 不只恢复 t
-        - 要恢复完整 state（由事件序列推导得到）
+        传统 replay：从第一条事件开始回放（慢但简单）。
         """
         events = store.load_all()
-
-        # 1) 从初始状态开始，把所有事件应用一遍得到最终状态
         final_state = apply_events(WorldState.initial(), events)
 
-        # 2) 构造 runtime：t/state 对齐，event_log 装入历史
-        rt = cls(
-            t=final_state.t,
-            state=final_state,
-            event_store=store,
-            gateway=None,
-        )
+        rt = cls(t=final_state.t, state=final_state, event_store=store, gateway=None)
         for e in events:
+            rt.event_log.append(e)
+        return rt
+
+    @classmethod
+    def replay_fast_from_store(cls, store: FileEventStore, snapshot_store: SnapshotStore) -> "WorldRuntime":
+        """
+        快速 replay：优先使用快照，再补快照之后的事件。
+
+        流程：
+        1) 尝试读取快照：
+           - 没快照：退化为 replay_from_store（全量回放）
+        2) 有快照：
+           - 从快照拿到 state + last_event_index
+           - 从事件存储读取 last_event_index+1 之后的事件
+           - 用 apply_events 把“剩余事件”补到快照 state 上
+        3) 构造 runtime：
+           - state/t 与最终结果对齐
+           - event_log 仍然装入所有事件（为了教学可视化）
+             （未来可做：只装一部分，或按需加载）
+        """
+        snap = snapshot_store.load()
+        if snap is None:
+            return cls.replay_from_store(store)
+
+        base_state, last_event_index = snap
+
+        remaining = store.load_from_index(last_event_index + 1)
+        final_state = apply_events(base_state, remaining)
+
+        rt = cls(t=final_state.t, state=final_state, event_store=store, gateway=None)
+
+        # 为了保持“event_log 可视化”，我们仍加载全部事件
+        # （MVP：简单清晰；未来：可以优化为懒加载）
+        for e in store.load_all():
             rt.event_log.append(e)
 
         return rt
