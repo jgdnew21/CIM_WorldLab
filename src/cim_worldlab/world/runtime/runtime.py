@@ -85,19 +85,10 @@ class WorldRuntime:
 
             # ✅ 关键改动 2：紧跟着生成 ACTION_EXECUTED（仅留痕，不接真实设备）
             dp = decision_event.payload if isinstance(decision_event.payload, dict) else {}
-
-            action_type = (
-                dp.get("suggested_action")
-                or dp.get("action")
-                or dp.get("action_type")
-                or "NOOP"
-            )
-            reason = (
-                dp.get("reason")
-                or dp.get("why")
-                or dp.get("message")
-                or "follow policy decision"
-            )
+            # Step18-4-3：字段契约收敛
+            # 只允许读取标准字段：suggested_action / reason
+            action_type = dp["suggested_action"]
+            reason = dp["reason"]
 
             action_event = ActionExecuted(
                 action_type=str(action_type),
