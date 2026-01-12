@@ -34,3 +34,5 @@ class WorldMetrics:
     input_count: int
     inputs_by_channel: Dict[str, int]
     last_input_summary: Optional[Dict[str, str]]
+    action_count: int
+    last_action_summary: Optional[Dict[str, str]]

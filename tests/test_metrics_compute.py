@@ -41,3 +41,7 @@ def test_metrics_counts_inputs_by_channel_and_last_input_summary():
     assert m.last_input_summary is not None
     assert m.last_input_summary["channel"] == "order"
     assert m.last_input_summary["name"] == "NEW_ORDER"
+
+    # Step18-3：默认还没有 action（这个测试场景里没有触发 policy）
+    assert m.action_count == 0
+    assert m.last_action_summary is None

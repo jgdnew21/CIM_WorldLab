@@ -9,3 +9,4 @@
 {"t": 1, "type": "EXTERNAL_INPUT", "payload": {"source": "plugin", "channel": "equipment", "name": "TEMP_READING", "data": {"temp_c": 93.0}, "trace_id": "PLUGIN-DEMO-3"}}
 {"t": 1, "type": "EXTERNAL_INPUT", "payload": {"source": "plugin", "channel": "equipment", "name": "TEMP_READING", "data": {"temp_c": 94.0}, "trace_id": "PLUGIN-DEMO-4"}}
 {"t": 1, "type": "WORLD_TICK", "payload": {"cli": "run-once"}}
+{"t": 1, "type": "WORLD_TICK", "payload": {"cli": "run-once"}}

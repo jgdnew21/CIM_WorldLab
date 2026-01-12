@@ -59,7 +59,14 @@ def main(argv: list[str] | None = None) -> int:
 
         if args.pretty:
             # ========= 投屏友好输出 =========
+            # 设计原则：
+            # - 一行一个重点指标：t / tick / inputs / cursor
+            # - 再补充“最近发生了什么”：last_input / last_action
+            # - 避免打印长 JSON（投影屏幕上看不清）
+
             m = out["metrics"]
+            
+            # 1) 总览行：世界时间、tick 次数、输入总数、cursor（指向事件日志的位置）
             print(
                 f"t={m['t']}  "
                 f"ticks={m['tick_count']}  "
@@ -67,6 +74,8 @@ def main(argv: list[str] | None = None) -> int:
                 f"cursor={out['cursor']}"
             )
 
+            # 2) 最近输入（last_input_summary）
+            #    - 这是“事实层”：外部输入是什么？来自哪里？属于哪个通道？
             if m.get("last_input_summary"):
                 li = m["last_input_summary"]
                 print(
@@ -75,8 +84,31 @@ def main(argv: list[str] | None = None) -> int:
                     f" channel={li.get('channel')}"
                     f" name={li.get('name')}"
                 )
-
+            # 3) 输入通道分布（inputs_by_channel）
+            #    - 方便快速看出：设备通道、订单通道、人为通道各来了多少输入
             print(f"inputs_by_channel: {m.get('inputs_by_channel', {})}")
+            
+            # 4) ===== Step18：动作留痕（ACTION_EXECUTED） =====
+            #    - POLICY_DECISION 只是“建议/判断”
+            #    - ACTION_EXECUTED 才是“真的执行了什么”的留痕
+            #
+            # 这里我们不直接打印 state，而是打印 metrics 里的摘要：
+            # - action_count：累计执行动作次数
+            # - last_action_summary：最近一次动作的投屏摘要（action_type + reason）
+
+            # 4.1 动作累计次数（如果旧数据没有这个字段，默认 0）
+            print(f"action_count: {m.get('action_count', 0)}")
+
+            # 4.2 最近动作摘要（如果还没有动作，就打印 none）
+            last_action = m.get("last_action_summary")
+            if not last_action:
+                print("last_action: (none)")
+            else:
+                # action_type：动作类型，例如 SLOW_DOWN / STOP / OBSERVE / NOOP
+                action_type = last_action.get("action_type", "")
+                # reason：执行理由（投屏最重要的一句话）
+                reason = last_action.get("reason", "")
+                print(f"last_action: {action_type}  because {reason}")
         else:
             print(json.dumps(out, ensure_ascii=False, indent=2))
 

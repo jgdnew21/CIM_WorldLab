@@ -48,10 +48,22 @@ def compute_metrics(state: WorldState, event_log: EventLog) -> WorldMetrics:
             "name": str(state.last_input.get("name", "")),
         }
 
+    # 3) last_action_summary：从 state.last_action 提炼成更适合看板/投屏的简要信息
+    last_action_summary = None
+    if state.last_action is not None:
+        last_action_summary = {
+            "action_type": str(state.last_action.get("action_type", "")),
+            "reason": str(state.last_action.get("reason", "")),
+            "from_policy_t": str(state.last_action.get("from_policy_t", "")),
+        }
+
     return WorldMetrics(
         t=state.t,
         tick_count=state.tick_count,
         input_count=state.input_count,
         inputs_by_channel=inputs_by_channel,
         last_input_summary=last_input_summary,
+        # ✅ Step18-3 新增
+        action_count=state.action_count,
+        last_action_summary=last_action_summary,
     )
