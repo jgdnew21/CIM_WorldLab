@@ -37,7 +37,7 @@ def test_temp_high_triggers_policy_decision():
     de = decision_events[0]
 
     assert de.payload["rule_id"] == "TEMP_HIGH_PAUSE"
-    assert de.payload["recommended_action"] == "PAUSE"
+    assert de.payload["suggested_action"] == "PAUSE"
     assert de.payload["severity"] == "ALERT"
     assert de.payload.get("trace_id") == "TR-1"
 

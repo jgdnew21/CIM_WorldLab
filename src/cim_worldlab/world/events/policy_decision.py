@@ -16,7 +16,7 @@ Step 17：策略决策事件（Policy Decision Event）
 本事件 payload 设计（MVP）：
 - rule_id：哪个规则命中（例如 TEMP_HIGH_PAUSE）
 - severity：风险级别（INFO/WARN/ALERT/CRITICAL）
-- recommended_action：建议的动作（例如 PAUSE）
+- suggested_action：建议的动作（例如 PAUSE）
 - reason：一段人类可读解释（教学用）
 - evidence：用于解释的关键信息（例如 temp_c 与 threshold）
 """
@@ -52,7 +52,7 @@ class PolicyDecision:
         payload: Dict[str, Any] = {
             "rule_id": self.rule_id,
             "severity": self.severity,
-            "recommended_action": self.recommended_action,
+            "suggested_action": self.recommended_action,
             "reason": self.reason,
             "evidence": self.evidence,
         }
